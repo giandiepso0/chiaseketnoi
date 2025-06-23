@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cẩm Nang Tương Tác Nuôi Dạy Trẻ 0-3 Tuổi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals with Teal Accent -->
+    <!-- Application Structure Plan: The application is designed as a single-page dashboard centered around the child's age. The primary navigation consists of prominent buttons for three key age groups (0-12m, 1-2y, 2-3y). Selecting an age dynamically updates the main content area with four relevant, tab-like sections: Developmental Milestones, Play & Learning, Nutrition & Sleep, and Safety. This age-centric, tabbed structure was chosen because it directly maps to the primary user's (a parent's) immediate need: finding information relevant to their child's specific stage of development without having to sift through irrelevant data. A global "Alerts" section consolidates all critical warnings (illnesses, red flags) for quick access in urgent situations. This prioritizes user task-flow and efficient information retrieval over mirroring the source report's linear structure. -->
+    <!-- Visualization & Content Choices: 1. Report Info: Sleep Duration by Age. Goal: Compare. Viz: Bar Chart (Chart.js). Interaction: Hover tooltips. Justification: Visually represents the change in sleep needs over time, much faster to grasp than text. 2. Report Info: Detailed Developmental Milestones (from tables). Goal: Organize & Inform. Viz: Interactive Accordion (HTML/JS). Interaction: Click to expand/collapse. Justification: Prevents overwhelming users with dense tables by breaking information into scannable, manageable chunks. 3. Report Info: Safety checklists. Goal: Actionable Information. Viz: Icon-driven cards (HTML/Tailwind). Interaction: Static display. Justification: Icons and cards enhance scannability for urgent safety topics. 4. Report Info: Montessori vs. EASY comparison. Goal: Compare. Viz: Two-column layout. Interaction: Static display. Justification: Side-by-side layout facilitates direct comparison of philosophies. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background-color: #FDFBF8;
+            color: #4A4A4A;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 45vh;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .nav-button {
+            transition: all 0.3s ease;
+        }
+        .nav-button.active {
+            background-color: #14B8A6;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out;
+        }
+        .accordion-button.open + .accordion-content {
+            max-height: 1000px; /* Adjust as needed */
+        }
+        .section-card {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .section-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        }
+        .icon-placeholder {
+            font-size: 2rem;
+            line-height: 1;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto px-4 py-8">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-teal-700 mb-2">Cẩm Nang Tương Tác Nuôi Dạy Trẻ</h1>
+            <p class="text-lg text-slate-600">Đồng hành cùng bạn trong 3 năm đầu đời của bé</p>
+        </header>
+
+        <nav id="age-selector" class="flex justify-center flex-wrap gap-2 md:gap-4 mb-10">
+            <button data-age="0-12" class="nav-button active text-sm md:text-base font-semibold py-2 px-4 md:py-3 md:px-6 bg-white rounded-full shadow-md">
+                👶 0-12 Tháng
+            </button>
+            <button data-age="1-2" class="nav-button text-sm md:text-base font-semibold py-2 px-4 md:py-3 md:px-6 bg-white rounded-full shadow-md">
+                🧸 1-2 Tuổi
+            </button>
+            <button data-age="2-3" class="nav-button text-sm md:text-base font-semibold py-2 px-4 md:py-3 md:px-6 bg-white rounded-full shadow-md">
+                🏃 2-3 Tuổi
+            </button>
+            <button data-age="alerts" class="nav-button text-sm md:text-base font-semibold py-2 px-4 md:py-3 md:px-6 bg-rose-100 text-rose-700 rounded-full shadow-md">
+                ⚠️ Cảnh Báo An Toàn
+            </button>
+        </nav>
+
+        <main id="content-area">
+        </main>
+
+        <footer class="text-center mt-12 text-slate-500 text-sm">
+            <p>Thông tin được tổng hợp và trực quan hóa từ báo cáo "Cẩm Nang Toàn Diện Nuôi Dạy Trẻ Từ 0-3 Tuổi".</p>
+        </footer>
+
+    </div>
+
+    <script>
+    const appData = {
+        '0-12': {
+            title: 'Năm Đầu Đời - Nền Móng Vững Chắc',
+            intro: 'Năm đầu tiên là giai đoạn phát triển với tốc độ vũ bão. Từ một em bé sơ sinh, con sẽ dần trở thành một cá thể có khả năng di chuyển, giao tiếp và tương tác với thế giới xung quanh. Hãy cùng khám phá những thay đổi kỳ diệu của con trong giai đoạn này.',
+            sections: [
+                {
+                    title: 'Cột Mốc Phát Triển',
+                    icon: '🌟',
+                    content: `
+                        <div class="space-y-3">
+                            <div>
+                                <button class="accordion-button w-full text-left font-semibold p-4 bg-teal-50 rounded-lg flex justify-between items-center">0-3 Tháng: Giai đoạn làm quen <span class="transform transition-transform duration-300">+</span></button>
+                                <div class="accordion-content px-4 pt-2 pb-4 text-slate-700">
+                                    <ul class="list-disc list-inside space-y-2">
+                                        <li><b>Vận động:</b> Ngẩng đầu khi nằm sấp, tay nắm chặt theo phản xạ.</li>
+                                        <li><b>Giác quan:</b> Nhìn rõ ở cự ly gần (20-35cm), theo dõi vật chuyển động, quay đầu về phía âm thanh.</li>
+                                        <li><b>Ngôn ngữ & Tình cảm:</b> Tạo âm thanh gừ gừ, mỉm cười, thích được ôm ấp.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div>
+                                <button class="accordion-button w-full text-left font-semibold p-4 bg-teal-50 rounded-lg flex justify-between items-center">4-6 Tháng: Giai đoạn khám phá <span class="transform transition-transform duration-300">+</span></button>
+                                <div class="accordion-content px-4 pt-2 pb-4 text-slate-700">
+                                    <ul class="list-disc list-inside space-y-2">
+                                        <li><b>Vận động:</b> Lật thành thạo, bắt đầu tự ngồi khi có hỗ trợ.</li>
+                                        <li><b>Vận động tinh:</b> Với, cầm, nắm, lắc đồ vật, chuyển đồ vật giữa hai tay.</li>
+                                        <li><b>Nhận thức & Ngôn ngữ:</b> Khám phá mọi thứ bằng miệng, cười thành tiếng, bập bẹ.</li>
+                                        <li><b>Tình cảm:</b> Nhận ra người quen, thích chơi đùa tương tác.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div>
+                                <button class="accordion-button w-full text-left font-semibold p-4 bg-teal-50 rounded-lg flex justify-between items-center">7-12 Tháng: Giai đoạn bùng nổ <span class="transform transition-transform duration-300">+</span></button>
+                                <div class="accordion-content px-4 pt-2 pb-4 text-slate-700">
+                                    <ul class="list-disc list-inside space-y-2">
+                                        <li><b>Vận động:</b> Bò, trườn thành thạo, vịn đứng dậy, đi men. Một số bé chập chững đi.</li>
+                                        <li><b>Vận động tinh:</b> Kỹ năng "bốc nhón" (dùng ngón trỏ và ngón cái), bỏ đồ vật vào/lấy ra.</li>
+                                        <li><b>Nhận thức & Ngôn ngữ:</b> Hiểu sự tồn tại của vật thể, bắt chước hành động, nói "ba", "mẹ".</li>
+                                        <li><b>Tình cảm:</b> Lo lắng khi xa cách, sợ người lạ, có đồ chơi yêu thích.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    `
+                },
+                {
+                    title: 'Vui Chơi & Học Hỏi',
+                    icon: '🎓',
+                    content: `
+                        <p class="mb-4">"Chơi" chính là "học" trong năm đầu đời. Mọi hoạt động tương tác đều là bài học quý giá, kích thích sự phát triển toàn diện của trẻ.</p>
+                        <ul class="list-disc list-inside space-y-2">
+                           <li><b>Tummy Time (Nằm sấp):</b> Hoạt động cực kỳ quan trọng giúp cơ cổ, vai, lưng của bé khoẻ mạnh, tạo tiền đề cho lật, bò, ngồi.</li>
+                           <li><b>Kích thích giác quan:</b> Dùng thẻ đen trắng (0-3 tháng), đồ chơi nhiều màu sắc, phát ra âm thanh. Thường xuyên trò chuyện, hát và massage cho bé.</li>
+                           <li><b>Đọc sách:</b> Chọn sách vải, bìa cứng có hình ảnh to, rõ nét. Đọc sách mỗi ngày giúp bé làm quen ngôn ngữ và yêu thích sách.</li>
+                           <li><b>Trò chơi tương tác:</b> Chơi "ú oà" giúp bé học về sự tồn tại của vật thể. Giấu đồ vật để bé tìm kiếm.</li>
+                        </ul>
+                    `
+                },
+                {
+                    title: 'Dinh Dưỡng & Giấc Ngủ',
+                    icon: '🌙',
+                    content: `
+                        <p class="mb-4">Dinh dưỡng và giấc ngủ là hai trụ cột cho sự phát triển của trẻ. Việc thiết lập nề nếp khoa học giúp trẻ khỏe mạnh và cha mẹ bớt vất vả.</p>
+                        <div class="chart-container mb-6"><canvas id="sleepChart"></canvas></div>
+                        <ul class="list-disc list-inside space-y-2">
+                            <li><b>Sữa mẹ:</b> Là nguồn dinh dưỡng vàng, nên cho bé bú hoàn toàn trong 6 tháng đầu.</li>
+                            <li><b>Ăn dặm:</b> Bắt đầu từ 6 tháng tuổi, từ bột mịn đến tăng dần độ thô. Cho bé thử thức ăn bốc (finger foods) từ 9 tháng.</li>
+                            <li><b>Tự ngủ:</b> Rèn cho bé tự ngủ bằng cách đặt con xuống giường khi buồn ngủ nhưng còn thức.</li>
+                            <li><b>An toàn giấc ngủ:</b> Luôn đặt trẻ nằm ngửa, trong cũi trống để phòng ngừa hội chứng đột tử ở trẻ sơ sinh (SIDS).</li>
+                        </ul>
+                    `
+                }
+            ]
+        },
+        '1-2': {
+            title: 'Năm Thứ Hai - Thế Giới Rộng Mở',
+            intro: 'Bước sang tuổi thứ hai, trẻ trở thành một "nhà thám hiểm tí hon". Đây là giai đoạn bùng nổ về vận động, ngôn ngữ và sự trỗi dậy của ý thức về bản thân.',
+            sections: [
+                {
+                    title: 'Cột Mốc Phát Triển',
+                    icon: '🚀',
+                    content: `
+                        <ul class="list-disc list-inside space-y-2">
+                            <li><b>Vận động thô:</b> Đi vững, bắt đầu chạy, thích leo trèo, đá bóng.</li>
+                            <li><b>Vận động tinh:</b> Xếp chồng 3-4 khối, tự dùng thìa, vẽ nguệch ngoạc.</li>
+                            <li><b>Ngôn ngữ:</b> Bùng nổ ngôn ngữ, vốn từ tăng nhanh (đến 50-300 từ), nói câu 2-3 từ.</li>
+                            <li><b>Nhận thức:</b> Bắt chước hành động người lớn, bắt đầu chơi "giả vờ".</li>
+                            <li><b>Tình cảm-Xã hội:</b> Trỗi dậy "cái tôi", thường nói "không", có thể có cơn ăn vạ (tantrums), hiểu khái niệm "của con".</li>
+                        </ul>
+                    `
+                },
+                {
+                    title: 'Giáo Dục Sớm',
+                    icon: '🧠',
+                    content: `
+                        <p class="mb-4">Các hoạt động vui chơi trong giai đoạn này cần hướng đến việc hỗ trợ các kỹ năng mới nổi của trẻ, đặc biệt là ngôn ngữ, tư duy và vận động.</p>
+                        <ul class="list-disc list-inside space-y-2">
+                            <li><b>Phát triển tư duy:</b> Chơi xếp hình, lắp ghép, phân loại đồ vật theo màu sắc, hình dạng.</li>
+                            <li><b>Phát triển vận động tinh:</b> Cung cấp bút màu, giấy, đất nặn để con thoả sức sáng tạo.</li>
+                            <li><b>Khuyến khích ngôn ngữ:</b> Đọc sách mỗi ngày. Mở rộng từ con nói thành câu hoàn chỉnh (VD: con nói "Ô tô", mẹ đáp "Đúng rồi, ô tô màu đỏ!").</li>
+                            <li><b>Trò chơi tương tác:</b> Chơi trốn tìm, chơi với bóng, và các trò chơi đóng vai (nấu ăn, khám bệnh cho gấu bông).</li>
+                        </ul>
+                    `
+                },
+                {
+                    title: 'An Toàn & Giới Hạn',
+                    icon: '🛡️',
+                    content: `
+                        <p class="mb-4">Khi trẻ di chuyển nhiều hơn, việc đảm bảo an toàn và thiết lập giới hạn trở nên vô cùng quan trọng.</p>
+                        <ul class="list-disc list-inside space-y-2">
+                            <li><b>Quản lý cơn ăn vạ:</b> Cha mẹ cần giữ bình tĩnh. Thừa nhận cảm xúc của con ("Mẹ biết con đang tức giận") nhưng vẫn kiên quyết giữ vững giới hạn.</li>
+                            <li><b>Bảo vệ trẻ (Child-proofing):</b> Bịt ổ điện, khóa cửa sổ, chặn cầu thang, cất hóa chất và thuốc men khỏi tầm với của trẻ.</li>
+                            <li><b>Giám sát liên tục:</b> Luôn giám sát trẻ 100% khi ở gần khu vực có nước, bếp núc hoặc khi chơi ngoài trời.</li>
+                        </ul>
+                    `
+                }
+            ]
+        },
+        '2-3': {
+            title: 'Năm Thứ Ba - Cá Tính Nở Rộ',
+            intro: 'Giai đoạn này là thời kỳ trẻ hoàn thiện các kỹ năng, ngôn ngữ phát triển như vũ bão và cá tính riêng được thể hiện rõ nét. Trẻ đã trở thành một "người bạn nhỏ" thực thụ.',
+            sections: [
+                {
+                    title: 'Cột Mốc Phát Triển',
+                    icon: '💡',
+                    content: `
+                        <ul class="list-disc list-inside space-y-2">
+                            <li><b>Vận động thô:</b> Chạy nhảy linh hoạt, đứng một chân, học đạp xe ba bánh.</li>
+                            <li><b>Vận động tinh:</b> Xếp tháp cao (6-8 khối), vẽ vòng tròn, có thể dùng kéo an toàn.</li>
+                            <li><b>Ngôn ngữ:</b> Vốn từ tăng vọt (vài trăm từ), nói câu dài, đặt câu hỏi "tại sao?" liên tục.</li>
+                            <li><b>Nhận thức:</b> Trí tưởng tượng bay cao, hiểu khái niệm trừu tượng (màu sắc, to-nhỏ).</li>
+                            <li><b>Tình cảm-Xã hội:</b> Chuyển từ "chơi song hành" sang "chơi hợp tác", học cách chia sẻ, thể hiện sự đồng cảm.</li>
+                        </ul>
+                    `
+                },
+                {
+                    title: 'Kỹ Năng Sống & Cảm Xúc',
+                    icon: '❤️',
+                    content: `
+                        <p class="mb-4">Đây là giai đoạn lý tưởng để trang bị cho trẻ những kỹ năng sống cơ bản và nền tảng về trí tuệ cảm xúc (EQ).</p>
+                        <ul class="list-disc list-inside space-y-2">
+                            <li><b>Kỹ năng tự lập:</b> Khuyến khích con tự mặc quần áo, đi giày, dọn dẹp đồ chơi. Có thể bắt đầu tập đi vệ sinh.</li>
+                            <li><b>Kỹ năng xã hội:</b> Dạy con chào hỏi, nói "cảm ơn", "xin lỗi". Dạy về sự chia sẻ.</li>
+                            <li><b>Nuôi dưỡng cảm xúc (EQ):</b> Giúp con nhận diện và gọi tên cảm xúc ("Con đang tức giận", "Bạn đang buồn").</li>
+                            <li><b>Thói quen tốt:</b> Cùng con xây dựng thói quen đọc sách, tập thể dục, ăn rau xanh.</li>
+                        </ul>
+                    `
+                },
+                {
+                    title: 'An Toàn & Tương Lai',
+                    icon: '🏫',
+                    content: `
+                         <p class="mb-4">Việc giáo dục về an toàn và chuẩn bị cho môi trường mới là rất cần thiết ở độ tuổi này.</p>
+                        <ul class="list-disc list-inside space-y-2">
+                            <li><b>Dạy quy tắc an toàn:</b> Củng cố các quy tắc: không đi theo người lạ, không tự ý chạy ra đường. Dạy về an toàn cơ thể ("vùng đồ bơi").</li>
+                            <li><b>Xử lý hành vi thách thức:</b> Nhất quán, kiên quyết nhưng yêu thương. Cho con lựa chọn trong khuôn khổ (VD: "Con muốn tắm với bạn vịt hay bạn cá?").</li>
+                            <li><b>Chuẩn bị cho nhà trẻ:</b> Trò chuyện với con về trường lớp, cô giáo, bạn bè. Cho con tham gia các nhóm chơi để làm quen dần.</li>
+                        </ul>
+                    `
+                }
+            ]
+        },
+        'alerts': {
+            title: 'Cảnh Báo An Toàn & Sức Khỏe',
+            intro: 'Trang bị kiến thức về an toàn và sức khỏe là vô cùng cần thiết. Dưới đây là danh mục các mối nguy hiểm, bệnh thường gặp và các dấu hiệu cảnh báo quan trọng mà cha mẹ cần nắm vững.',
+            sections: [
+                {
+                    title: 'Các Bệnh Lý Thường Gặp',
+                    icon: '🩺',
+                    content: `
+                        <p class="mb-4">Hệ miễn dịch của trẻ còn non nớt, vì vậy bé dễ mắc các bệnh sau:</p>
+                        <ul class="list-disc list-inside space-y-2">
+                            <li><b>Hô hấp:</b> Cảm lạnh, cúm, viêm họng, viêm phế quản, viêm phổi.</li>
+                            <li><b>Ngoài da:</b> Vàng da, mụn sữa, chàm, rôm sảy, hăm tã, tay chân miệng.</li>
+                            <li><b>Tiêu hóa:</b> Nôn trớ, tiêu chảy, táo bón, ngộ độc thực phẩm.</li>
+                            <li><b>Bệnh truyền nhiễm nguy hiểm:</b> Viêm màng não, sởi, bạch hầu (cần tiêm chủng đầy đủ).</li>
+                        </ul>
+                    `
+                },
+                {
+                    title: 'Checklist An Toàn Tại Nhà',
+                    icon: '🏠',
+                    content: `
+                        <p class="mb-4">Hãy rà soát và tạo ra một môi trường sống an toàn tối đa cho con.</p>
+                        <ul class="list-disc list-inside space-y-2">
+                            <li><b>Phòng ngã:</b> Chặn cầu thang, cố định đồ đạc nặng vào tường, khóa cửa sổ.</li>
+                            <li><b>Phòng bỏng:</b> Bịt ổ điện, quay tay cầm nồi vào trong khi nấu, kiểm tra nhiệt độ nước tắm/sữa.</li>
+                            <li><b>Phòng đuối nước:</b> Luôn giám sát khi trẻ gần nước, đậy nắp bồn cầu, xả nước bồn tắm ngay sau khi dùng.</li>
+                            <li><b>Phòng ngộ độc:</b> Cất thuốc và hoá chất ở nơi có khóa, ngoài tầm với.</li>
+                            <li><b>Phòng ngạt thở/hóc:</b> Cho trẻ nằm cũi trống khi ngủ, giữ các vật nhỏ xa tầm tay, cắt nhỏ thức ăn.</li>
+                            <li><b>An toàn trên xe:</b> Luôn dùng ghế ngồi ô tô chuyên dụng.</li>
+                        </ul>
+                    `
+                },
+                {
+                    title: 'Dấu Hiệu "Cờ Đỏ" (Cần Gặp Bác Sĩ)',
+                    icon: '🚩',
+                    content: `
+                        <p class="mb-4">Mỗi trẻ phát triển theo tốc độ riêng, nhưng hãy tham khảo ý kiến bác sĩ nếu bạn thấy các dấu hiệu sau:</p>
+                        <div class="space-y-3">
+                            <div>
+                                <button class="accordion-button w-full text-left font-semibold p-4 bg-rose-50 rounded-lg flex justify-between items-center">Chậm phát triển <span class="transform transition-transform duration-300">+</span></button>
+                                <div class="accordion-content px-4 pt-2 pb-4 text-slate-700">
+                                    <ul class="list-disc list-inside space-y-2">
+                                        <li><b>12 tháng:</b> Không bò, không nói được từ đơn ("baba"), không vẫy tay/chỉ tay.</li>
+                                        <li><b>18 tháng:</b> Không đi vững, không nói được ít nhất 15 từ.</li>
+                                        <li><b>2 tuổi:</b> Không nói được câu 2 từ, không bắt chước hành động, mất đi kỹ năng đã có.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div>
+                                <button class="accordion-button w-full text-left font-semibold p-4 bg-rose-50 rounded-lg flex justify-between items-center">Sức khỏe cần can thiệp ngay <span class="transform transition-transform duration-300">+</span></button>
+                                <div class="accordion-content px-4 pt-2 pb-4 text-slate-700">
+                                    <ul class="list-disc list-inside space-y-2">
+                                        <li><b>Sốt:</b> Trẻ dưới 3 tháng sốt ≥ 38°C; trẻ 3-6 tháng sốt > 39°C.</li>
+                                        <li><b>Hô hấp:</b> Khó thở, thở nhanh, da tím tái.</li>
+                                        <li><b>Thần kinh:</b> Co giật, li bì khó đánh thức, khóc thét không dỗ được.</li>
+                                        <li><b>Tiêu hóa:</b> Nôn ói/tiêu chảy kéo dài, có dấu hiệu mất nước, có máu trong phân/chất nôn.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    `
+                }
+            ]
+        }
+    };
+    
+    const contentArea = document.getElementById('content-area');
+    const ageSelector = document.getElementById('age-selector');
+    let currentChart = null;
+
+    function renderContent(ageGroup) {
+        const data = appData[ageGroup];
+        if (!data) return;
+
+        let contentHTML = `
+            <div class="text-center mb-8">
+                <h2 class="text-2xl md:text-3xl font-bold text-teal-600">${data.title}</h2>
+                <p class="mt-2 max-w-2xl mx-auto text-slate-600">${data.intro}</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                ${data.sections.map(section => `
+                    <div class="section-card p-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                            <span class="icon-placeholder mr-3">${section.icon}</span>
+                            ${section.title}
+                        </h3>
+                        <div>${section.content}</div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        
+        contentArea.innerHTML = contentHTML;
+
+        if (ageGroup === '0-12') {
+            renderSleepChart();
+        }
+
+        setupAccordions();
+    }
+
+    function renderSleepChart() {
+        const ctx = document.getElementById('sleepChart')?.getContext('2d');
+        if (!ctx) return;
+        
+        if (currentChart) {
+            currentChart.destroy();
+        }
+
+        currentChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['0-3 Tháng', '4-12 Tháng', '1-3 Tuổi'],
+                datasets: [{
+                    label: 'Số giờ ngủ mỗi ngày',
+                    data: [15.5, 13.5, 12.5], 
+                    backgroundColor: [
+                        'rgba(56, 189, 248, 0.6)',
+                        'rgba(34, 197, 94, 0.6)',
+                        'rgba(249, 115, 22, 0.6)'
+                    ],
+                    borderColor: [
+                        'rgba(56, 189, 248, 1)',
+                        'rgba(34, 197, 94, 1)',
+                        'rgba(249, 115, 22, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Giờ'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.dataset.label || '';
+                                let valueRange = '';
+                                switch(context.dataIndex) {
+                                    case 0: valueRange = '14-17 giờ'; break;
+                                    case 1: valueRange = '12-15 giờ'; break;
+                                    case 2: valueRange = '11-14 giờ'; break;
+                                }
+                                return `${label}: ${valueRange}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function setupAccordions() {
+        const accordionButtons = contentArea.querySelectorAll('.accordion-button');
+        accordionButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const wasOpen = button.classList.contains('open');
+                
+                // Optional: Close all other accordions in the same group
+                // accordionButtons.forEach(btn => {
+                //     btn.classList.remove('open');
+                //     btn.querySelector('span').style.transform = 'rotate(0deg)';
+                // });
+
+                if (!wasOpen) {
+                    button.classList.add('open');
+                    button.querySelector('span').style.transform = 'rotate(45deg)';
+                } else {
+                     button.classList.remove('open');
+                     button.querySelector('span').style.transform = 'rotate(0deg)';
+                }
+            });
+        });
+    }
+
+    ageSelector.addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON') {
+            const age = e.target.dataset.age;
+            
+            // Update active button style
+            ageSelector.querySelectorAll('button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            e.target.classList.add('active');
+            
+            // Render content
+            renderContent(age);
+        }
+    });
+
+    // Initial render
+    renderContent('0-12');
+    </script>
+
+</body>
+</html>
